@@ -1,0 +1,4 @@
+# Only needed for live model runs (`configs/models.live.yaml`).
+-r requirements.txt
+anthropic==0.34.2
+openai==1.51.0

@@ -1,0 +1,15 @@
+# Default configuration: fully simulated. Runs on first clone, no API keys, ~10s.
+# Every model here is a deterministic stand-in, NOT a real model. See RESPONSIBLE_USE.md §4.
+
+judge:
+  provider: simulated
+  params:
+    error_rate: 0.05
+
+models:
+  - {provider: simulated, name: sim-guarded-7b}
+  - {provider: simulated, name: sim-open-instruct-3b}
+  - {provider: simulated, name: sim-open-8b}
+  - {provider: simulated, name: sim-open-moe}
+  - {provider: simulated, name: sim-open-70b}
+  - {provider: simulated, name: sim-api-frontier}

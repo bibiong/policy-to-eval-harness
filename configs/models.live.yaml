@@ -1,0 +1,50 @@
+# Live configuration: five open-weight models served locally plus one API model.
+#
+# Open weights are served through Ollama's OpenAI-compatible endpoint by default
+# (`ollama serve`, then `ollama pull <model>`). Point base_url at vLLM, Together,
+# Fireworks or Groq instead if you prefer — the provider is the same.
+#
+# Required env: ANTHROPIC_API_KEY (judge + API model), or swap the judge for an
+# OpenAI-compatible one. Nothing in this file is pinned to a vendor.
+
+judge:
+  provider: anthropic
+  name: judge-claude
+  model: claude-sonnet-5
+  params: {temperature: 0.0, max_tokens: 300}
+
+models:
+  - provider: openai_compat
+    name: llama-3.1-8b-instruct
+    model: llama3.1:8b-instruct-q8_0
+    base_url: http://localhost:11434/v1
+    api_key_env: OLLAMA_API_KEY
+
+  - provider: openai_compat
+    name: llama-3.3-70b-instruct
+    model: llama3.3:70b-instruct-q4_K_M
+    base_url: http://localhost:11434/v1
+    api_key_env: OLLAMA_API_KEY
+
+  - provider: openai_compat
+    name: mistral-nemo-12b
+    model: mistral-nemo:12b-instruct-2407-q8_0
+    base_url: http://localhost:11434/v1
+    api_key_env: OLLAMA_API_KEY
+
+  - provider: openai_compat
+    name: qwen2.5-14b-instruct
+    model: qwen2.5:14b-instruct-q8_0
+    base_url: http://localhost:11434/v1
+    api_key_env: OLLAMA_API_KEY
+
+  - provider: openai_compat
+    name: gemma2-9b-it
+    model: gemma2:9b-instruct-q8_0
+    base_url: http://localhost:11434/v1
+    api_key_env: OLLAMA_API_KEY
+
+  - provider: anthropic
+    name: claude-sonnet-5
+    model: claude-sonnet-5
+    params: {temperature: 0.0, max_tokens: 700}

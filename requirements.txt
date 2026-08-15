@@ -1,0 +1,7 @@
+# Pinned. `pip install -r requirements.txt` reproduces the shipped run exactly.
+pandas==2.2.2
+numpy==1.26.4
+PyYAML==6.0.1
+matplotlib==3.8.4
+pytest==8.2.2
+ruff==0.5.7

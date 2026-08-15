@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install (pinned)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Lint
+        run: ruff check src tests
+
+      - name: Validate the policy taxonomy
+        run: p2e taxonomy
+
+      - name: Build the dataset
+        run: p2e build --out /tmp/dataset.jsonl
+
+      # The full pipeline runs in CI, not just the unit tests. A broken run fails
+      # the build rather than shipping a stale report.
+      - name: Run the end-to-end pipeline
+        run: |
+          p2e run --config configs/models.yaml --out results/demo_sim
+          p2e annotate --run results/demo_sim --simulate
+          p2e report --run results/demo_sim
+
+      - name: Tests (incl. regression locks on the shipped numbers)
+        run: pytest -q
+
+      - name: Fail if the committed report drifted from a fresh run
+        run: |
+          git diff --exit-code -- reports/ results/demo_sim/scored.csv \
+            || (echo "::error::Committed artifacts differ from a fresh run. Run 'make demo report' and commit." && exit 1)
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report-py${{ matrix.python-version }}
+          path: |
+            reports/
+            results/demo_sim/metrics.json

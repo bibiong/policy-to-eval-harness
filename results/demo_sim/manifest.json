@@ -1,0 +1,19 @@
+{
+  "taxonomy_version": "1.0",
+  "n_items": 400,
+  "n_models": 6,
+  "models": [
+    "sim-guarded-7b",
+    "sim-open-instruct-3b",
+    "sim-open-8b",
+    "sim-open-moe",
+    "sim-open-70b",
+    "sim-api-frontier"
+  ],
+  "judge": "sim-judge",
+  "judge_simulated": true,
+  "any_simulated_model": true,
+  "all_simulated": true,
+  "generation_errors": 0,
+  "config_sha256": "7bc533332774e111"
+}

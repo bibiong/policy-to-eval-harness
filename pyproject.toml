@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "policy-to-eval-harness"
+version = "1.0.0"
+description = "Turn a written usage policy into a measurable, running evaluation."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [{name = "Brenda Ong"}]
+keywords = ["ai-safety", "trust-and-safety", "evaluation", "policy", "over-refusal"]
+dependencies = [
+  "pandas==2.2.2",
+  "numpy==1.26.4",
+  "PyYAML==6.0.1",
+  "matplotlib==3.8.4",
+]
+
+[project.optional-dependencies]
+live = [
+  "anthropic==0.34.2",
+  "openai==1.51.0",
+]
+dev = [
+  "pytest==8.2.2",
+  "ruff==0.5.7",
+]
+
+[project.scripts]
+p2e = "p2e.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
