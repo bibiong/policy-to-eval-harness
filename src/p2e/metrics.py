@@ -20,6 +20,46 @@ def _rate(numerator: int, denominator: int) -> float:
     return float(numerator) / denominator if denominator else float("nan")
 
 
+def _ranks(values: list[float]) -> list[float]:
+    """Ranks with ties averaged, as Spearman requires."""
+    order = sorted(range(len(values)), key=lambda i: values[i])
+    ranks = [0.0] * len(values)
+    i = 0
+    while i < len(order):
+        j = i
+        while j + 1 < len(order) and values[order[j + 1]] == values[order[i]]:
+            j += 1
+        shared = (i + j) / 2 + 1
+        for k in range(i, j + 1):
+            ranks[order[k]] = shared
+        i = j + 1
+    return ranks
+
+
+def spearman_rho(x: list[float], y: list[float]) -> float:
+    """Spearman rank correlation.
+
+    Implemented here rather than via `pandas.Series.corr(method="spearman")`,
+    which silently requires scipy — a heavy dependency to add for one statistic,
+    and one whose absence turns into an import error only at report time on a
+    fresh clone.
+    """
+    if len(x) != len(y):
+        raise ValueError("inputs must be the same length")
+    pairs = [(a, b) for a, b in zip(x, y, strict=True) if not (pd.isna(a) or pd.isna(b))]
+    n = len(pairs)
+    if n < 3:
+        return float("nan")
+
+    rx = _ranks([p[0] for p in pairs])
+    ry = _ranks([p[1] for p in pairs])
+    mx, my = sum(rx) / n, sum(ry) / n
+    cov = sum((a - mx) * (b - my) for a, b in zip(rx, ry, strict=True))
+    vx = math.sqrt(sum((a - mx) ** 2 for a in rx))
+    vy = math.sqrt(sum((b - my) ** 2 for b in ry))
+    return cov / (vx * vy) if vx and vy else float("nan")
+
+
 def wilson_ci(successes: int, total: int, z: float = 1.96) -> tuple[float, float]:
     """Wilson score interval — behaves at the boundaries where normal approx fails."""
     if total == 0:

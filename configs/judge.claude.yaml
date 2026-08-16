@@ -1,0 +1,20 @@
+# Claude as judge, for re-scoring a finished local run:
+#
+#   export ANTHROPIC_API_KEY="sk-ant-..."
+#   p2e rejudge --run results/live --config configs/judge.claude.yaml --out results/live_claude
+#   p2e annotate --run results/live_claude --sample
+#   p2e report --run results/live_claude --annotations data/annotations/human_labels.csv
+#
+# The `models:` block is required by the schema but unused by `rejudge`, which
+# reads responses from the existing run rather than generating new ones.
+#
+# Cost: ~2,000 judge calls over a full 5-model run. Each sends the rubric plus
+# one response (~1.5k tokens in, ~40 out), so expect roughly $2-4 on Sonnet.
+
+judge:
+  provider: anthropic
+  name: judge-claude-sonnet-5
+  model: claude-sonnet-5
+  params: {temperature: 0.0, max_tokens: 200}
+
+models: []

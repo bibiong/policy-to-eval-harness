@@ -264,7 +264,9 @@ def render(run_dir: str | Path, out_path: str | Path = "reports/findings.md") ->
 
         ranked = per_cat.dropna(subset=["excess_disagreement"]).copy()
         ranked["coupling"] = ranked["category"].map(_CATEGORY_COUPLING)
-        rho = ranked["excess_disagreement"].corr(-ranked["coupling"], method="spearman")
+        rho = metrics.spearman_rho(
+            ranked["excess_disagreement"].tolist(), (-ranked["coupling"]).tolist()
+        )
         top2 = set(ranked.nlargest(2, "excess_disagreement")["category"])
         least_coupled = set(ranked.nsmallest(2, "coupling")["category"])
         add("### Does the excess-disagreement statistic actually work?\n")

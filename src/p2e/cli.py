@@ -43,6 +43,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_rejudge(args: argparse.Namespace) -> int:
+    run_eval.rejudge(run_dir=args.run, config_path=args.config, out_dir=args.out)
+    return 0
+
+
 def _cmd_annotate(args: argparse.Namespace) -> int:
     annotate.build_sample(
         run_dir=args.run,
@@ -85,6 +90,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--limit", type=int, default=None)
     p.add_argument("--workers", type=int, default=8)
     p.set_defaults(func=_cmd_run)
+
+    p = sub.add_parser("rejudge", help="re-score a finished run with a different judge")
+    p.add_argument("--run", required=True, help="existing run directory to re-score")
+    p.add_argument("--config", required=True, help="config whose `judge:` block to use")
+    p.add_argument("--out", default=None, help="defaults to <run>_rejudged")
+    p.set_defaults(func=_cmd_rejudge)
 
     p = sub.add_parser("annotate", help="build the human-annotation sample")
     p.add_argument("--run", default="results/demo_sim")

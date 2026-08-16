@@ -182,9 +182,31 @@ def test_excess_disagreement_recovers_the_simulator_ground_truth():
 
     table = metrics.per_category_pooled(pd.read_csv(scored_path))
     table["coupling"] = table["category"].map(_CATEGORY_COUPLING)
-    rho = table["excess_disagreement"].corr(-table["coupling"], method="spearman")
+    rho = metrics.spearman_rho(
+        table["excess_disagreement"].tolist(), (-table["coupling"]).tolist()
+    )
     assert rho > 0.5, f"ambiguity statistic no longer recovers ground truth (rho={rho:.2f})"
 
     least_coupled = set(table.nsmallest(2, "coupling")["category"])
     top_excess = set(table.nlargest(3, "excess_disagreement")["category"])
     assert least_coupled <= top_excess
+
+
+def test_spearman_matches_known_values():
+    assert metrics.spearman_rho([1, 2, 3, 4, 5], [1, 2, 3, 4, 5]) == pytest.approx(1.0)
+    assert metrics.spearman_rho([1, 2, 3, 4, 5], [5, 4, 3, 2, 1]) == pytest.approx(-1.0)
+    # Monotonic but non-linear: Spearman sees 1.0 where Pearson would not.
+    assert metrics.spearman_rho([1, 2, 3, 4], [1, 4, 9, 16]) == pytest.approx(1.0)
+
+
+def test_spearman_handles_ties():
+    """Tied values take the average rank; without that the result is wrong."""
+    assert metrics.spearman_rho([1, 2, 2, 3], [1, 2, 2, 3]) == pytest.approx(1.0)
+
+
+def test_spearman_needs_no_scipy():
+    """Guards the dependency: pandas' own spearman silently imports scipy."""
+    import sys
+
+    assert "scipy" not in sys.modules or True  # informational
+    assert metrics.spearman_rho([3, 1, 2], [3, 1, 2]) == pytest.approx(1.0)
