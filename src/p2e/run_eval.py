@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -59,7 +60,14 @@ def _score_one(judge, item: Item, response: str, model: str, error: str | None) 
     }
 
 
-def _response_records(provider, items: list[Item], workers: int) -> list[dict]:
+def _response_records(provider, items: list[Item], workers: int) -> Iterator[dict]:
+    """Yield response records as they complete.
+
+    A generator rather than a list: a full local run is hours long, so results
+    must reach disk incrementally. Buffering 400 responses in memory meant no
+    output for ~30 minutes per model and total loss if the run died at item 399.
+    """
+
     def one(item: Item) -> dict:
         started = time.time()
         try:
@@ -77,8 +85,10 @@ def _response_records(provider, items: list[Item], workers: int) -> list[dict]:
 
     if workers > 1 and not provider.simulated:
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            return list(pool.map(one, items))
-    return [one(item) for item in items]
+            yield from pool.map(one, items)
+    else:
+        for item in items:
+            yield one(item)
 
 
 def run(
@@ -88,6 +98,7 @@ def run(
     seeds_path: str | Path = "data/seeds/prompts_seed.yaml",
     limit: int | None = None,
     workers: int = 8,
+    progress_every: int = 25,
 ) -> Path:
     config = load_config(config_path)
     taxonomy = load_taxonomy(taxonomy_path)
@@ -105,17 +116,38 @@ def run(
     rows: list[dict] = []
     raw_path = out_dir / "responses.jsonl"
 
+    scored_path = out_dir / "scored.csv"
+    started_all = time.time()
+
     with raw_path.open("w", encoding="utf-8") as raw_fh:
         for spec in config["models"]:
             provider = build_provider(spec)
-            print(f"  → {provider.name} ({len(items)} items)")
-            for record in _response_records(provider, items, workers):
+            print(f"  → {provider.name} ({len(items)} items)", flush=True)
+            model_started = time.time()
+
+            for n, record in enumerate(_response_records(provider, items, workers), 1):
                 raw_fh.write(json.dumps(record, ensure_ascii=False) + "\n")
                 item = by_id[record["item_id"]]
                 row = _score_one(
                     judge, item, record["response"], provider.name, record["error"]
                 )
                 rows.append({**row, "simulated": provider.simulated})
+
+                if n % progress_every == 0 or n == len(items):
+                    raw_fh.flush()
+                    # Partial scores land on disk too, so a run that dies late is
+                    # still analysable rather than being a total loss.
+                    pd.DataFrame(rows).to_csv(scored_path, index=False)
+                    per_item = (time.time() - model_started) / n
+                    remaining = per_item * (len(items) - n)
+                    print(
+                        f"    {n}/{len(items)}  {per_item:.1f}s/item  "
+                        f"~{remaining / 60:.0f} min left on this model",
+                        flush=True,
+                    )
+
+            elapsed = (time.time() - model_started) / 60
+            print(f"    done in {elapsed:.1f} min", flush=True)
 
     scored = pd.DataFrame(rows)
     errors = int((scored["behavior"] == "error").sum())
@@ -139,7 +171,11 @@ def run(
         ).hexdigest()[:16],
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    print(f"  wrote {out_dir}/scored.csv ({len(scored)} rows)")
+    print(
+        f"  wrote {out_dir}/scored.csv ({len(scored)} rows) "
+        f"in {(time.time() - started_all) / 60:.1f} min",
+        flush=True,
+    )
     return out_dir
 
 
