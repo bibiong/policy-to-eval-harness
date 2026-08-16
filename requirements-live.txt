@@ -1,4 +1,7 @@
-# Only needed for live model runs (`configs/models.live.yaml`).
+# Only needed for live model runs (configs/models.live.yaml, configs/models.ollama.yaml).
 -r requirements.txt
 anthropic==0.34.2
 openai==1.51.0
+# openai 1.51 calls httpx with the `proxies` kwarg, which httpx removed in 0.28.
+# Without this pin, constructing an OpenAI client raises TypeError.
+httpx==0.27.2
