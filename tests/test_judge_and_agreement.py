@@ -175,3 +175,49 @@ def test_stratified_sample_is_deterministic():
     a = stratified_sample(df, per_stratum=5)["item_id"].tolist()
     b = stratified_sample(df, per_stratum=5)["item_id"].tolist()
     assert a == b
+
+
+# ── .env loading ────────────────────────────────────────────────────────────────
+
+
+def test_dotenv_parses_the_forms_that_appear_in_key_files(tmp_path, monkeypatch):
+    from p2e.env import load_dotenv
+
+    path = tmp_path / ".env"
+    path.write_text(
+        "# a comment\n"
+        "\n"
+        'export ANTHROPIC_API_KEY="sk-ant-quoted"\n'
+        "OPENAI_API_KEY=sk-plain\n"
+        "MALFORMED_LINE\n",
+        encoding="utf-8",
+    )
+    for key in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
+
+    loaded = load_dotenv(path)
+    import os
+
+    assert set(loaded) == {"ANTHROPIC_API_KEY", "OPENAI_API_KEY"}
+    assert os.environ["ANTHROPIC_API_KEY"] == "sk-ant-quoted"
+    assert os.environ["OPENAI_API_KEY"] == "sk-plain"
+
+
+def test_real_env_var_beats_the_file(tmp_path, monkeypatch):
+    """An explicitly exported key must not be silently replaced by the file."""
+    from p2e.env import load_dotenv
+
+    path = tmp_path / ".env"
+    path.write_text("ANTHROPIC_API_KEY=from-file\n", encoding="utf-8")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "from-shell")
+
+    assert load_dotenv(path) == []
+    import os
+
+    assert os.environ["ANTHROPIC_API_KEY"] == "from-shell"
+
+
+def test_missing_dotenv_is_not_an_error(tmp_path):
+    from p2e.env import load_dotenv
+
+    assert load_dotenv(tmp_path / "nope") == []

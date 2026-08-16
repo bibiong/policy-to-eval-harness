@@ -8,6 +8,7 @@ from pathlib import Path
 
 from . import annotate, report, run_eval
 from .dataset import build_dataset, write_dataset
+from .env import load_dotenv
 from .taxonomy import load_taxonomy
 
 
@@ -116,6 +117,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    load_dotenv()  # picks up ANTHROPIC_API_KEY / OPENAI_API_KEY from a gitignored .env
     args = build_parser().parse_args(argv)
     if not Path(args.taxonomy).exists():
         print(f"error: {args.taxonomy} not found — run from the repo root", file=sys.stderr)
