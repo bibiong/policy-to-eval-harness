@@ -292,6 +292,43 @@ def framing_sensitivity(df: pd.DataFrame, primary_only: bool = True) -> pd.DataF
     return pd.DataFrame(rows)
 
 
+def truncation_profile(df: pd.DataFrame, long_chars: int = 2000) -> pd.DataFrame:
+    """Is the generation length cap biasing the labels?
+
+    Responses are capped (512 tokens by default). A compliant answer cut off at
+    the cap can read as though it withheld the specifics, which the rubric would
+    score `partial` — and `partial` counts as a refusal. Models differ a lot in
+    verbosity, so if that effect is real it inflates over-refusal for the wordy
+    models specifically, which would be a pure artifact of the cap rather than a
+    fact about the policy.
+
+    This reports, per model, the share of responses at or near the cap and the
+    `partial` rate among long versus short responses. If `partial_long` is not
+    meaningfully above `partial_short`, truncation is not driving the labels.
+    """
+    rows = []
+    for model, sub in df.groupby("model", sort=True):
+        benign = sub[sub["expected"] == "comply"]
+        if benign.empty:
+            continue
+        long_mask = benign["response_chars"] >= long_chars
+        short, long_ = benign[~long_mask], benign[long_mask]
+        rows.append(
+            {
+                "model": model,
+                "share_long": float(long_mask.mean()),
+                "partial_short": float((short["behavior"] == "partial").mean()) if len(short) else float("nan"),
+                "partial_long": float((long_["behavior"] == "partial").mean()) if len(long_) else float("nan"),
+                "n_short": int(len(short)),
+                "n_long": int(len(long_)),
+            }
+        )
+    out = pd.DataFrame(rows)
+    if not out.empty:
+        out["partial_gap"] = out["partial_long"] - out["partial_short"]
+    return out
+
+
 def edge_gap(df: pd.DataFrame) -> pd.DataFrame:
     """Over-refusal on taxonomy-flagged edge items vs clear-cut permitted items."""
     rows = []

@@ -15,3 +15,73 @@ running configs/models.ollama.yaml
     50/323  5.4s/item  ~25 min left on this model
     75/323  6.0s/item  ~25 min left on this model
     100/323  5.8s/item  ~21 min left on this model
+    125/323  5.7s/item  ~19 min left on this model
+    150/323  6.0s/item  ~17 min left on this model
+    175/323  5.9s/item  ~15 min left on this model
+    200/323  5.8s/item  ~12 min left on this model
+    225/323  5.8s/item  ~9 min left on this model
+    250/323  6.0s/item  ~7 min left on this model
+    275/323  6.0s/item  ~5 min left on this model
+    300/323  6.2s/item  ~2 min left on this model
+    323/323  6.3s/item  ~0 min left on this model
+    done in 33.7 min
+  → llama3.1-8b (400 items)
+    25/400  19.4s/item  ~121 min left on this model
+    50/400  15.8s/item  ~92 min left on this model
+    75/400  13.3s/item  ~72 min left on this model
+    100/400  12.9s/item  ~64 min left on this model
+    125/400  12.9s/item  ~59 min left on this model
+    150/400  12.6s/item  ~53 min left on this model
+    175/400  12.1s/item  ~46 min left on this model
+    200/400  11.6s/item  ~39 min left on this model
+    225/400  12.0s/item  ~35 min left on this model
+    250/400  11.7s/item  ~29 min left on this model
+    275/400  11.3s/item  ~24 min left on this model
+    300/400  11.2s/item  ~19 min left on this model
+    325/400  11.4s/item  ~14 min left on this model
+    350/400  11.3s/item  ~9 min left on this model
+    375/400  11.4s/item  ~5 min left on this model
+    400/400  11.3s/item  ~0 min left on this model
+    done in 75.5 min
+  → gemma2-9b (400 items)
+    25/400  16.3s/item  ~102 min left on this model
+    50/400  15.8s/item  ~92 min left on this model
+    75/400  15.8s/item  ~86 min left on this model
+    100/400  15.7s/item  ~78 min left on this model
+    125/400  15.7s/item  ~72 min left on this model
+    150/400  15.9s/item  ~66 min left on this model
+    175/400  15.7s/item  ~59 min left on this model
+    200/400  15.4s/item  ~51 min left on this model
+    225/400  15.5s/item  ~45 min left on this model
+    250/400  15.0s/item  ~38 min left on this model
+    275/400  14.8s/item  ~31 min left on this model
+    300/400  14.8s/item  ~25 min left on this model
+    325/400  15.1s/item  ~19 min left on this model
+    350/400  15.1s/item  ~13 min left on this model
+    375/400  15.1s/item  ~6 min left on this model
+    400/400  14.9s/item  ~0 min left on this model
+    done in 99.2 min
+  → mistral-nemo-12b (400 items)
+    25/400  21.9s/item  ~137 min left on this model
+    50/400  21.6s/item  ~126 min left on this model
+    75/400  21.8s/item  ~118 min left on this model
+    100/400  22.2s/item  ~111 min left on this model
+    125/400  22.3s/item  ~102 min left on this model
+    150/400  22.8s/item  ~95 min left on this model
+    175/400  23.4s/item  ~88 min left on this model
+    200/400  22.9s/item  ~76 min left on this model
+    225/400  23.1s/item  ~67 min left on this model
+    250/400  23.1s/item  ~58 min left on this model
+    275/400  22.9s/item  ~48 min left on this model
+    300/400  22.7s/item  ~38 min left on this model
+    325/400  22.7s/item  ~28 min left on this model
+    350/400  22.4s/item  ~19 min left on this model
+    375/400  22.1s/item  ~9 min left on this model
+    400/400  21.6s/item  ~0 min left on this model
+    done in 144.0 min
+  → qwen2.5-14b (400 items)
+    25/400  23.5s/item  ~147 min left on this model
+    50/400  21.5s/item  ~125 min left on this model
+    75/400  22.2s/item  ~120 min left on this model
+    100/400  22.3s/item  ~112 min left on this model
+    125/400  23.3s/item  ~107 min left on this model

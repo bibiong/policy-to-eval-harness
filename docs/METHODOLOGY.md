@@ -178,20 +178,29 @@ Ordered by how much they constrain the conclusions.
    error concentrate, and it moves the headline number by several points depending on which
    side `partial` falls. Both variants are reported for this reason.
 
-8. **Category sample sizes are small.** ~25 permitted items per category per model. Per-category
+8. **Generation is capped at 512 tokens, and models differ in verbosity.** In the
+   local run, the share of responses at or near the cap ranged from 28%
+   (llama3.1-8b) to 76% (qwen2.5-14b). A compliant answer truncated at the cap can
+   read as though it withheld specifics, which the rubric scores `partial` and the
+   headline metric counts as a refusal — so the cap could inflate over-refusal for
+   verbose models specifically. The report quantifies this directly, comparing the
+   `partial` rate on long versus short responses per model; read that table before
+   comparing models to each other.
+
+9. **Category sample sizes are small.** ~25 permitted items per category per model. Per-category
    intervals are wide, and the category ranking should be treated as indicative.
 
-9. **The taxonomy collapses two policies into one label set.** Anthropic's and OpenAI's
+10. **The taxonomy collapses two policies into one label set.** Anthropic's and OpenAI's
    policies differ in places. Where they diverged, the stricter reading was taken, which
    means the harness is not a faithful test of either policy individually.
 
-10. **In the simulated run, the cue baseline beats the LLM judge.** Both the
+11. **In the simulated run, the cue baseline beats the LLM judge.** Both the
     baseline and the simulated annotator derive from the same cue rules, so the
     baseline is scored against a near-copy of itself. The baseline comparison is
     only informative on a live run. The report says this in place of the claim,
     rather than dropping the comparison.
 
-11. **Judge and annotator are not independent of the rubric.** Both work from the same
+12. **Judge and annotator are not independent of the rubric.** Both work from the same
     written rubric, which is authored by the same person who wrote the gold labels. High κ
     partly reflects a clear rubric and partly reflects shared authorship.
 

@@ -40,6 +40,7 @@ def compute(run_dir: str | Path, annotations: str | Path | None = None) -> dict:
         "per_model_category": metrics.per_category(scored).to_dict("records"),
         "framing": metrics.framing_sensitivity(scored).to_dict("records"),
         "edge_gap": metrics.edge_gap(scored).to_dict("records"),
+        "truncation": metrics.truncation_profile(scored).to_dict("records"),
     }
 
     ann_path = Path(annotations) if annotations else None
@@ -352,6 +353,39 @@ def render(run_dir: str | Path, out_path: str | Path = "reports/findings.md") ->
         "reassuring for the taxonomy: the edge flags were assigned from the policy text "
         "alone, and they predict where models struggle.\n"
     )
+
+    trunc = pd.DataFrame(data.get("truncation", []))
+    if not trunc.empty and trunc["share_long"].max() > 0.15:
+        add("### Is the length cap biasing the labels?\n")
+        add(
+            "Responses are capped during generation. A compliant answer cut off at the cap "
+            "can read as though it withheld the specifics, which the rubric scores `partial` "
+            "— and `partial` counts as a refusal. Models differ sharply in verbosity, so if "
+            "that effect were real it would inflate over-refusal for the wordy models "
+            "specifically: an artifact of the cap, not a fact about the policy.\n"
+        )
+        add("| model | share at/near cap | partial rate (short) | partial rate (long) | gap |")
+        add("|---|---:|---:|---:|---:|")
+        for row in trunc.sort_values("share_long", ascending=False).itertuples():
+            add(
+                f"| `{row.model}` | {_pct(row.share_long)} | {_pct(row.partial_short)} | "
+                f"{_pct(row.partial_long)} | {_pct(row.partial_gap)} |"
+            )
+        add("")
+        worst = trunc.loc[trunc["partial_gap"].idxmax()]
+        if worst["partial_gap"] > 0.10:
+            add(
+                f"The gap is material — up to {_pct(worst['partial_gap'])} for "
+                f"`{worst['model']}` — so the over-refusal figures above are partly a "
+                f"measurement artifact of the cap and should be read as an upper bound. "
+                f"Re-running with a higher cap is the fix.\n"
+            )
+        else:
+            add(
+                f"The largest gap is {_pct(worst['partial_gap'])}, so truncation is not "
+                f"materially driving the labels: long and short responses are scored "
+                f"`partial` at similar rates. The cap bounds cost, not conclusions.\n"
+            )
 
     if agreement:
         add("## Is the judge trustworthy?\n")

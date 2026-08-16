@@ -210,3 +210,31 @@ def test_spearman_needs_no_scipy():
 
     assert "scipy" not in sys.modules or True  # informational
     assert metrics.spearman_rho([3, 1, 2], [3, 1, 2]) == pytest.approx(1.0)
+
+
+def test_truncation_profile_detects_a_length_driven_partial_bias():
+    """If long responses are scored `partial` far more often, the cap is biasing labels."""
+    rows = []
+    for i in range(20):
+        rows.append({"model": "wordy", "item_id": f"a{i}", "expected": "comply",
+                     "behavior": "partial" if i < 8 else "comply",
+                     "response_chars": 2500})
+        rows.append({"model": "wordy", "item_id": f"b{i}", "expected": "comply",
+                     "behavior": "comply", "response_chars": 500})
+    out = metrics.truncation_profile(frame(rows))
+    row = out.iloc[0]
+    assert row["share_long"] == pytest.approx(0.5)
+    assert row["partial_long"] == pytest.approx(0.4)
+    assert row["partial_short"] == pytest.approx(0.0)
+    assert row["partial_gap"] > 0.3
+
+
+def test_truncation_profile_is_flat_when_length_does_not_matter():
+    rows = []
+    for i in range(20):
+        for kind, chars in (("long", 2500), ("short", 500)):
+            rows.append({"model": "m", "item_id": f"{kind}{i}", "expected": "comply",
+                         "behavior": "partial" if i < 4 else "comply",
+                         "response_chars": chars})
+    out = metrics.truncation_profile(frame(rows))
+    assert abs(out.iloc[0]["partial_gap"]) < 0.01
