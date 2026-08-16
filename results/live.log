@@ -12,3 +12,6 @@ running configs/models.ollama.yaml
   resuming: 77 responses already on disk
   → llama3.2-3b (323 items)
     25/323  2.6s/item  ~13 min left on this model
+    50/323  5.4s/item  ~25 min left on this model
+    75/323  6.0s/item  ~25 min left on this model
+    100/323  5.8s/item  ~21 min left on this model

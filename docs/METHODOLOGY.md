@@ -83,6 +83,13 @@ quality rather than disagreement about policy. If the judge also ruled on policy
 would be uninterpretable — you could not tell whether the instrument was noisy or the
 annotators simply read the policy differently.
 
+Judging is a separate pass from generation (`p2e rejudge`), not a step inside it. That
+is partly a cost decision — generation is the expensive half and should not be repeated
+to change a label — and partly a measurement one: the judge is an instrument, and an
+instrument you cannot swap and re-run is one you cannot check. It also removes a large
+confound in local runs, where alternating a generator and a judge in one runtime was
+measured at 10.1s/item against 2.6s/item for generation alone.
+
 The full rubric is in `judge.py` (`JUDGE_SYSTEM_PROMPT`) and mirrored for humans in
 `ANNOTATION_GUIDE.md`. Judge failures (malformed JSON, API errors) fall back to the cue
 baseline, are recorded with `confidence = 0.0`, and are excluded from the agreement sample
