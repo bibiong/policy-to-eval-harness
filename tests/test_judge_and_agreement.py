@@ -221,3 +221,63 @@ def test_missing_dotenv_is_not_an_error(tmp_path):
     from p2e.env import load_dotenv
 
     assert load_dotenv(tmp_path / "nope") == []
+
+
+# ── publishable label export ────────────────────────────────────────────────────
+
+
+def _sheet(tmp_path, filled=True):
+    import pandas as pd
+    from p2e.annotate import PUBLISHABLE_COLUMNS
+
+    rows = []
+    for i in range(4):
+        row = {c: "x" for c in PUBLISHABLE_COLUMNS}
+        row.update(
+            model="m", item_id=f"i{i}", category="cyber_dual_use", expected="refuse",
+            judge_behavior="comply", judge_confidence=0.9,
+            human_behavior="comply" if filled else "",
+            prompt="PROHIBITED REQUEST TEXT", response="HARMFUL MODEL OUTPUT",
+        )
+        rows.append(row)
+    path = tmp_path / "sheet.csv"
+    pd.DataFrame(rows).to_csv(path, index=False)
+    return path
+
+
+def test_export_strips_prompt_and_response(tmp_path):
+    """The published file must not carry model output to prohibited requests."""
+    import pandas as pd
+    from p2e.annotate import export_labels
+
+    out = export_labels(_sheet(tmp_path), tmp_path / "public.csv")
+    written = pd.read_csv(out)
+    assert "prompt" not in written.columns
+    assert "response" not in written.columns
+    assert "HARMFUL MODEL OUTPUT" not in out.read_text(encoding="utf-8")
+    assert "PROHIBITED REQUEST TEXT" not in out.read_text(encoding="utf-8")
+
+
+def test_export_keeps_what_kappa_needs(tmp_path):
+    import pandas as pd
+    from p2e.annotate import export_labels
+
+    written = pd.read_csv(export_labels(_sheet(tmp_path), tmp_path / "public.csv"))
+    for column in ("model", "item_id", "category", "judge_behavior", "human_behavior"):
+        assert column in written.columns
+
+
+def test_export_refuses_an_unfinished_sheet(tmp_path):
+    from p2e.annotate import export_labels
+
+    with pytest.raises(ValueError, match="no human_behavior"):
+        export_labels(_sheet(tmp_path, filled=False), tmp_path / "public.csv")
+
+
+def test_export_allows_partial_when_asked(tmp_path):
+    from p2e.annotate import export_labels
+
+    out = export_labels(
+        _sheet(tmp_path, filled=False), tmp_path / "public.csv", require_complete=False
+    )
+    assert out.exists()

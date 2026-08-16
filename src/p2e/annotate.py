@@ -96,3 +96,52 @@ def build_sample(
     sample[columns].rename(columns={"behavior": "judge_behavior"}).to_csv(out_path, index=False)
     print(f"  wrote {out_path} ({len(sample)} rows, simulate={simulate})")
     return out_path
+
+
+# Columns safe to publish: enough to reproduce kappa and the confusion matrix,
+# and nothing else. `prompt` and `response` are deliberately excluded — the
+# response column contains model output to prohibited requests, which is exactly
+# what RESPONSIBLE_USE.md §3 says never ships.
+PUBLISHABLE_COLUMNS = [
+    "model", "item_id", "category", "subcategory", "framing", "expected", "edge",
+    "judge_behavior", "judge_confidence", "human_behavior", "annotator", "annotator_notes",
+]
+
+
+def export_labels(
+    labels_path: str | Path,
+    out_path: str | Path,
+    require_complete: bool = True,
+) -> Path:
+    """Strip the working annotation sheet down to a publishable label file.
+
+    The sheet you annotate from carries the full prompt and response inline,
+    because you cannot label what you cannot read. That same file must never be
+    committed: for the refusal-expected half of the dataset it holds model output
+    to prohibited requests. This writes the labels without the content.
+
+    The result is sufficient to recompute judge-human agreement, so the
+    calibration claim stays reproducible by anyone who re-runs generation.
+    """
+    labels_path, out_path = Path(labels_path), Path(out_path)
+    df = pd.read_csv(labels_path)
+
+    filled = df["human_behavior"].notna() & (df["human_behavior"].astype(str).str.strip() != "")
+    if require_complete and not filled.all():
+        raise ValueError(
+            f"{int((~filled).sum())} of {len(df)} rows have no human_behavior. "
+            "Finish labelling, or pass require_complete=False to export a partial sheet."
+        )
+    df = df[filled]
+
+    missing = [c for c in PUBLISHABLE_COLUMNS if c not in df.columns]
+    if missing:
+        raise ValueError(f"annotation sheet is missing columns: {missing}")
+
+    leaked = [c for c in ("prompt", "response") if c in PUBLISHABLE_COLUMNS]
+    assert not leaked, "content columns must never be in the publishable set"
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    df[PUBLISHABLE_COLUMNS].to_csv(out_path, index=False)
+    print(f"  wrote {out_path} ({len(df)} labelled rows, content columns stripped)")
+    return out_path

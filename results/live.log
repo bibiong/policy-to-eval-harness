@@ -85,3 +85,16 @@ running configs/models.ollama.yaml
     75/400  22.2s/item  ~120 min left on this model
     100/400  22.3s/item  ~112 min left on this model
     125/400  23.3s/item  ~107 min left on this model
+    150/400  23.4s/item  ~97 min left on this model
+    175/400  22.9s/item  ~86 min left on this model
+    200/400  22.3s/item  ~74 min left on this model
+    225/400  22.5s/item  ~66 min left on this model
+    250/400  22.2s/item  ~55 min left on this model
+    275/400  21.6s/item  ~45 min left on this model
+    300/400  21.6s/item  ~36 min left on this model
+    325/400  22.1s/item  ~28 min left on this model
+    350/400  22.1s/item  ~18 min left on this model
+    375/400  23.1s/item  ~10 min left on this model
+    400/400  24.2s/item  ~0 min left on this model
+    done in 161.5 min
+  wrote results/live/scored.csv (2000 rows) in 513.9 min

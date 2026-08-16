@@ -13,3 +13,10 @@ results/live*/
 
 .venv/
 results/smoke*/
+
+# Working annotation sheets carry prompts and model responses inline, including
+# responses to prohibited requests. Publish the redacted export instead:
+#   p2e export-labels --labels data/annotations/human_labels_live.csv \
+#                     --out data/annotations/labels_live_public.csv
+data/annotations/*_live.csv
+!data/annotations/*_public.csv

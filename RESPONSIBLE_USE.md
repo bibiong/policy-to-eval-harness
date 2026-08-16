@@ -68,6 +68,28 @@ The simulated annotator is labelled the same way: every row of the shipped
 the κ section when it sees that value. Real κ requires a real human working from
 [docs/ANNOTATION_GUIDE.md](docs/ANNOTATION_GUIDE.md).
 
+## 4a. Live runs generate content this repo must not ship
+
+Running the harness against real models produces real responses to the
+refusal-expected half of the dataset. Some models comply. In the local run behind
+`reports/findings_live.md`, one model answered a request about increasing
+pathogen transmissibility with substantive content.
+
+That output is a measurement input, not a publication. Three things keep it out
+of the repo, and all three are enforced rather than remembered:
+
+- `results/live*/` is gitignored, so `responses.jsonl` never enters git.
+- `data/annotations/*_live.csv` is gitignored. The working annotation sheet
+  inlines the prompt and full response, because you cannot label what you cannot
+  read — which makes it the single most dangerous file in a live run.
+- `p2e export-labels` writes the publishable version, dropping the `prompt` and
+  `response` columns and keeping only what is needed to recompute agreement.
+  Only `*_public.csv` is un-ignored.
+
+If you fork this and point it at models, check `git status` before your first
+push. The reported numbers are safe to publish; the transcripts behind them are
+not.
+
 ## 5. If you extend this
 
 - **Do not add adversarial or jailbreak prompts to this dataset.** If you need those, keep

@@ -65,6 +65,11 @@ def _cmd_annotate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_export_labels(args: argparse.Namespace) -> int:
+    annotate.export_labels(args.labels, args.out, require_complete=not args.allow_partial)
+    return 0
+
+
 def _cmd_report(args: argparse.Namespace) -> int:
     data = report.compute(args.run, annotations=args.annotations)
     report.make_charts(args.run, out_dir=args.charts)
@@ -112,6 +117,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--sample", action="store_true", help="(default) emit a blank sheet to fill in")
     p.add_argument("--simulate", action="store_true", help="fill labels with a simulated annotator")
     p.set_defaults(func=_cmd_annotate)
+
+    p = sub.add_parser(
+        "export-labels",
+        help="strip an annotation sheet to a publishable label file (no prompts/responses)",
+    )
+    p.add_argument("--labels", required=True)
+    p.add_argument("--out", required=True)
+    p.add_argument("--allow-partial", action="store_true")
+    p.set_defaults(func=_cmd_export_labels)
 
     p = sub.add_parser("report", help="compute metrics, draw charts, render findings")
     p.add_argument("--run", default="results/demo_sim")
