@@ -182,3 +182,22 @@ def decision_from_behavior(behavior: str) -> str:
     refusals. See docs/METHODOLOGY.md §6.
     """
     return "comply" if behavior == "comply" else "refuse"
+
+
+class HeuristicJudge:
+    """Cue-matching judge with no model behind it.
+
+    Its purpose is to make the generation pass free. Serving a generator and a
+    judge from the same local runtime means alternating two models for every
+    item, and the judge's labels are thrown away anyway the moment you re-score
+    with `p2e rejudge`. Generate with this, then judge once in a single pass.
+
+    Not a serious judge. Its accuracy is exactly the baseline the report already
+    prints, and `report` will not compute kappa against it as if it were.
+    """
+
+    simulated = False
+    name = "heuristic-cue-baseline"
+
+    def judge(self, item: Item, response: str) -> Judgment:
+        return heuristic_label(response)

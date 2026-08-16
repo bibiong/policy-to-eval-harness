@@ -165,3 +165,73 @@ def test_edge_items_are_refused_more_than_clear_cut_ones():
     predict where models struggle."""
     data = json.loads((RUN / "metrics.json").read_text())
     assert sum(r["gap"] for r in data["edge_gap"]) > 0
+
+
+# ── resume ──────────────────────────────────────────────────────────────────────
+
+
+def test_resume_skips_completed_work_and_completes_the_run(tmp_path):
+    """A run interrupted partway must not regenerate what it already has."""
+    out = tmp_path / "run"
+
+    # First pass: two models only.
+    partial_cfg = tmp_path / "partial.yaml"
+    partial_cfg.write_text(
+        "judge: {provider: simulated}\n"
+        "models:\n"
+        "  - {provider: simulated, name: sim-open-8b}\n"
+        "  - {provider: simulated, name: sim-open-70b}\n",
+        encoding="utf-8",
+    )
+    run_eval.run(config_path=partial_cfg, out_dir=out, limit=20)
+    first = pd.read_csv(out / "scored.csv")
+    assert set(first["model"]) == {"sim-open-8b", "sim-open-70b"}
+    assert len(first) == 40
+
+    # Second pass: same two plus a third, with --resume.
+    full_cfg = tmp_path / "full.yaml"
+    full_cfg.write_text(
+        "judge: {provider: simulated}\n"
+        "models:\n"
+        "  - {provider: simulated, name: sim-open-8b}\n"
+        "  - {provider: simulated, name: sim-open-70b}\n"
+        "  - {provider: simulated, name: sim-api-frontier}\n",
+        encoding="utf-8",
+    )
+    run_eval.run(config_path=full_cfg, out_dir=out, limit=20, resume=True)
+    second = pd.read_csv(out / "scored.csv")
+
+    assert len(second) == 60
+    assert set(second["model"]) == {"sim-open-8b", "sim-open-70b", "sim-api-frontier"}
+    # No duplicated work.
+    assert not second.duplicated(subset=["model", "item_id"]).any()
+    # Previously-scored rows are unchanged.
+    merged = first.merge(second, on=["model", "item_id"], suffixes=("_a", "_b"))
+    assert (merged["behavior_a"] == merged["behavior_b"]).all()
+
+
+def test_resume_recovers_responses_written_after_the_last_checkpoint(tmp_path):
+    """Responses past the last scored.csv checkpoint are re-judged, not lost."""
+    out = tmp_path / "run"
+    cfg = tmp_path / "c.yaml"
+    cfg.write_text(
+        "judge: {provider: simulated}\nmodels:\n  - {provider: simulated, name: sim-open-8b}\n",
+        encoding="utf-8",
+    )
+    run_eval.run(config_path=cfg, out_dir=out, limit=30, progress_every=10)
+
+    # Simulate a crash between the last checkpoint and the end: truncate scored.csv.
+    scored = pd.read_csv(out / "scored.csv")
+    scored.head(10).to_csv(out / "scored.csv", index=False)
+
+    run_eval.run(config_path=cfg, out_dir=out, limit=30, resume=True)
+    recovered = pd.read_csv(out / "scored.csv")
+    assert len(recovered) == 30
+    assert not recovered.duplicated(subset=["model", "item_id"]).any()
+
+
+def test_resume_on_a_fresh_directory_is_a_normal_run(tmp_path):
+    out = run_eval.run(
+        config_path="configs/models.yaml", out_dir=tmp_path / "fresh", limit=12, resume=True
+    )
+    assert len(pd.read_csv(out / "scored.csv")) == 12 * 6

@@ -19,13 +19,15 @@
 # "this quantized build served this way", not the original weights. Record the
 # exact tag if you publish.
 
+# Generation-only: the cue baseline costs nothing and keeps a second model out
+# of the runtime. Serving a generator and a judge from one Ollama instance means
+# alternating two models for every item, and those labels get discarded anyway
+# when you re-score. Judge once at the end instead:
+#
+#   p2e rejudge --run results/live --config configs/judge.openrouter.yaml \
+#               --out results/live_judged --workers 8
 judge:
-  provider: openai_compat
-  name: judge-llama3.1-8b
-  model: llama3.1:8b
-  base_url: http://localhost:11434/v1
-  api_key_env: OLLAMA_API_KEY
-  params: {temperature: 0.0, max_tokens: 200}
+  provider: heuristic
 
 models:
   - provider: openai_compat

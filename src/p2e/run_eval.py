@@ -13,7 +13,7 @@ import pandas as pd
 import yaml
 
 from .dataset import Item, build_dataset, write_dataset
-from .judge import SimulatedJudge, decision_from_behavior, heuristic_label
+from .judge import HeuristicJudge, SimulatedJudge, decision_from_behavior, heuristic_label
 from .providers import build_provider
 from .taxonomy import load_taxonomy
 
@@ -24,8 +24,11 @@ def load_config(path: str | Path) -> dict:
 
 def build_judge(judge_cfg: dict):
     """Instantiate the judge described by a config's `judge:` block."""
-    if judge_cfg["provider"] == "simulated":
+    kind = judge_cfg["provider"]
+    if kind == "simulated":
         return SimulatedJudge(**judge_cfg.get("params", {}))
+    if kind == "heuristic":
+        return HeuristicJudge()
     from .judge import LLMJudge
 
     return LLMJudge(build_provider(judge_cfg), name=judge_cfg.get("name", "llm-judge"))
@@ -91,6 +94,45 @@ def _response_records(provider, items: list[Item], workers: int) -> Iterator[dic
             yield one(item)
 
 
+def _resume_state(
+    raw_path: Path, scored_path: Path, by_id: dict[str, Item], judge
+) -> tuple[list[dict], set[tuple[str, str]]]:
+    """Rebuild scored rows from a partial run so it can continue where it stopped.
+
+    Generation is the expensive step, so anything already in responses.jsonl is
+    kept. Rows already present in the checkpointed scored.csv are reused as-is;
+    responses written after the last checkpoint are re-judged (cheap) rather than
+    regenerated. Returns the rows plus the set of (model, item_id) pairs to skip.
+    """
+    if not raw_path.exists():
+        return [], set()
+
+    rows: list[dict] = []
+    if scored_path.exists():
+        existing = pd.read_csv(scored_path)
+        rows = existing.to_dict("records")
+    scored_pairs = {(r["model"], r["item_id"]) for r in rows}
+
+    unjudged = 0
+    for line in raw_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        record = json.loads(line)
+        pair = (record["model"], record["item_id"])
+        if pair in scored_pairs or record["item_id"] not in by_id:
+            continue
+        row = _score_one(
+            judge, by_id[record["item_id"]], record["response"], record["model"], record["error"]
+        )
+        rows.append({**row, "simulated": record.get("simulated", False)})
+        scored_pairs.add(pair)
+        unjudged += 1
+
+    if unjudged:
+        print(f"  re-judged {unjudged} responses written after the last checkpoint", flush=True)
+    return rows, scored_pairs
+
+
 def run(
     config_path: str | Path = "configs/models.yaml",
     out_dir: str | Path = "results/demo_sim",
@@ -99,6 +141,7 @@ def run(
     limit: int | None = None,
     workers: int = 8,
     progress_every: int = 25,
+    resume: bool = False,
 ) -> Path:
     config = load_config(config_path)
     taxonomy = load_taxonomy(taxonomy_path)
@@ -113,19 +156,26 @@ def run(
     judge = build_judge(config.get("judge", {"provider": "simulated"}))
 
     by_id = {item.item_id: item for item in items}
-    rows: list[dict] = []
     raw_path = out_dir / "responses.jsonl"
-
     scored_path = out_dir / "scored.csv"
+
+    rows, done = _resume_state(raw_path, scored_path, by_id, judge) if resume else ([], set())
+    if resume and done:
+        print(f"  resuming: {len(done)} responses already on disk", flush=True)
+
     started_all = time.time()
 
-    with raw_path.open("w", encoding="utf-8") as raw_fh:
+    with raw_path.open("a" if resume else "w", encoding="utf-8") as raw_fh:
         for spec in config["models"]:
             provider = build_provider(spec)
-            print(f"  → {provider.name} ({len(items)} items)", flush=True)
+            pending = [i for i in items if (provider.name, i.item_id) not in done]
+            if not pending:
+                print(f"  → {provider.name} — already complete, skipping", flush=True)
+                continue
+            print(f"  → {provider.name} ({len(pending)} items)", flush=True)
             model_started = time.time()
 
-            for n, record in enumerate(_response_records(provider, items, workers), 1):
+            for n, record in enumerate(_response_records(provider, pending, workers), 1):
                 raw_fh.write(json.dumps(record, ensure_ascii=False) + "\n")
                 item = by_id[record["item_id"]]
                 row = _score_one(
@@ -133,15 +183,15 @@ def run(
                 )
                 rows.append({**row, "simulated": provider.simulated})
 
-                if n % progress_every == 0 or n == len(items):
+                if n % progress_every == 0 or n == len(pending):
                     raw_fh.flush()
                     # Partial scores land on disk too, so a run that dies late is
                     # still analysable rather than being a total loss.
                     pd.DataFrame(rows).to_csv(scored_path, index=False)
                     per_item = (time.time() - model_started) / n
-                    remaining = per_item * (len(items) - n)
+                    remaining = per_item * (len(pending) - n)
                     print(
-                        f"    {n}/{len(items)}  {per_item:.1f}s/item  "
+                        f"    {n}/{len(pending)}  {per_item:.1f}s/item  "
                         f"~{remaining / 60:.0f} min left on this model",
                         flush=True,
                     )
@@ -183,6 +233,7 @@ def rejudge(
     run_dir: str | Path,
     config_path: str | Path,
     out_dir: str | Path | None = None,
+    workers: int = 1,
 ) -> Path:
     """Re-score an existing run's saved responses with a different judge.
 
@@ -216,14 +267,29 @@ def rejudge(
         if line.strip()
     ]
 
-    print(f"  re-judging {len(records)} responses with {judge.name}")
-    rows = []
-    for n, record in enumerate(records, 1):
+    print(f"  re-judging {len(records)} responses with {judge.name} (workers={workers})", flush=True)
+
+    def score(record: dict) -> dict:
         item = items[record["item_id"]]
         row = _score_one(judge, item, record["response"], record["model"], record["error"])
-        rows.append({**row, "simulated": record.get("simulated", False)})
-        if n % 200 == 0:
-            print(f"    {n}/{len(records)}")
+        return {**row, "simulated": record.get("simulated", False)}
+
+    started = time.time()
+    rows = []
+    # A remote judge is rate-limited, not serialised, so concurrency pays here
+    # even though it does not for a local Ollama generator.
+    if workers > 1:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            stream = pool.map(score, records)
+            for n, row in enumerate(stream, 1):
+                rows.append(row)
+                if n % 100 == 0 or n == len(records):
+                    print(f"    {n}/{len(records)}  {(time.time() - started) / n:.2f}s/item", flush=True)
+    else:
+        for n, record in enumerate(records, 1):
+            rows.append(score(record))
+            if n % 100 == 0 or n == len(records):
+                print(f"    {n}/{len(records)}  {(time.time() - started) / n:.2f}s/item", flush=True)
 
     scored = pd.DataFrame(rows)
     errors = int((scored["behavior"] == "error").sum())

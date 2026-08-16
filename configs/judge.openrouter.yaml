@@ -1,0 +1,34 @@
+# OpenRouter as judge, for re-scoring a finished local run.
+#
+# OpenRouter speaks the OpenAI API, so it needs no new provider code — it is the
+# `openai_compat` provider pointed at a different base_url.
+#
+#   echo 'OPENROUTER_API_KEY=sk-or-...' >> .env
+#   p2e rejudge --run results/live --config configs/judge.openrouter.yaml --out results/live_or
+#   p2e annotate --run results/live_or --sample
+#   p2e report --run results/live_or --annotations data/annotations/human_labels.csv
+#
+# CHOOSING A JUDGE MODEL
+# The judge does one narrow, structured task: read a prompt and a response, emit
+# a three-way label as JSON. That does not need a frontier model — it needs
+# reliable instruction-following and valid JSON. A cheap mid-tier model is
+# usually the right call, and you can verify the choice rather than trust it:
+# whatever you pick, `p2e report` prints its kappa against your hand labels and
+# against the cue-matching baseline. If it does not clear the baseline, switch.
+#
+# Cost shape for a full 5-model run: ~2,000 judge calls, each roughly 1.5k input
+# tokens (rubric + response) and ~40 output, so on the order of 3M input tokens.
+# Multiply by the model's input price on https://openrouter.ai/models — that page
+# is the source of truth for both slugs and prices, which change. Verify the slug
+# below before running; a wrong slug fails on the first call, not the 500th.
+
+judge:
+  provider: openai_compat
+  name: judge-openrouter
+  model: google/gemini-2.5-flash        # cheap, fast, reliable JSON. Verify slug/price.
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: OPENROUTER_API_KEY
+  params: {temperature: 0.0, max_tokens: 200}
+
+# Unused by `rejudge`, which reads responses from the existing run.
+models: []

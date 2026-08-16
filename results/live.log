@@ -1,0 +1,14 @@
+running configs/models.ollama.yaml
+  → llama3.2-3b (400 items)
+    25/400  10.1s/item  ~63 min left on this model
+    50/400  7.0s/item  ~41 min left on this model
+    75/400  8.7s/item  ~47 min left on this model
+running configs/models.ollama.yaml
+  re-judged 2 responses written after the last checkpoint
+  resuming: 77 responses already on disk
+  → llama3.2-3b (323 items)
+running configs/models.ollama.yaml
+  re-judged 2 responses written after the last checkpoint
+  resuming: 77 responses already on disk
+  → llama3.2-3b (323 items)
+    25/323  2.6s/item  ~13 min left on this model
