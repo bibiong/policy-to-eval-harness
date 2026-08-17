@@ -235,3 +235,20 @@ def test_resume_on_a_fresh_directory_is_a_normal_run(tmp_path):
         config_path="configs/models.yaml", out_dir=tmp_path / "fresh", limit=12, resume=True
     )
     assert len(pd.read_csv(out / "scored.csv")) == 12 * 6
+
+
+def test_scored_columns_have_a_fixed_order(tmp_path):
+    """Column order is part of the output contract: refactoring row assembly must
+    not reorder columns, or every row of an identical file shows as changed."""
+    from p2e.run_eval import SCORED_COLUMNS
+
+    out = run_eval.run(config_path="configs/models.yaml", out_dir=tmp_path / "r", limit=10)
+    assert pd.read_csv(out / "scored.csv").columns.tolist() == SCORED_COLUMNS
+
+
+def test_rejudge_preserves_the_column_order(tmp_path):
+    from p2e.run_eval import SCORED_COLUMNS
+
+    out = run_eval.run(config_path="configs/models.yaml", out_dir=tmp_path / "r", limit=10)
+    re_out = run_eval.rejudge(out, "configs/models.yaml", out_dir=tmp_path / "rj")
+    assert pd.read_csv(re_out / "scored.csv").columns.tolist() == SCORED_COLUMNS

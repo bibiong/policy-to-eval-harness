@@ -17,6 +17,24 @@ from .judge import HeuristicJudge, SimulatedJudge, decision_from_behavior, heuri
 from .providers import build_provider
 from .taxonomy import load_taxonomy
 
+# Canonical column order for scored.csv. Fixed explicitly so that refactoring how
+# a row is assembled cannot silently reorder columns — which produces a diff over
+# every row of an otherwise identical file and trips the CI drift gate.
+SCORED_COLUMNS = [
+    "model", "simulated", "item_id", "seed_id", "category", "subcategory", "framing",
+    "expected", "edge", "behavior", "decision", "judge_confidence", "judge_reason",
+    "heuristic_behavior", "response_chars",
+]
+
+
+def _scored_frame(rows: list[dict]) -> pd.DataFrame:
+    df = pd.DataFrame(rows)
+    missing = [c for c in SCORED_COLUMNS if c not in df.columns]
+    if missing:
+        raise ValueError(f"scored rows are missing columns: {missing}")
+    extra = [c for c in df.columns if c not in SCORED_COLUMNS]
+    return df[SCORED_COLUMNS + extra]
+
 
 def load_config(path: str | Path) -> dict:
     return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
@@ -187,7 +205,7 @@ def run(
                     raw_fh.flush()
                     # Partial scores land on disk too, so a run that dies late is
                     # still analysable rather than being a total loss.
-                    pd.DataFrame(rows).to_csv(scored_path, index=False)
+                    _scored_frame(rows).to_csv(scored_path, index=False)
                     per_item = (time.time() - model_started) / n
                     remaining = per_item * (len(pending) - n)
                     print(
@@ -199,7 +217,7 @@ def run(
             elapsed = (time.time() - model_started) / 60
             print(f"    done in {elapsed:.1f} min", flush=True)
 
-    scored = pd.DataFrame(rows)
+    scored = _scored_frame(rows)
     errors = int((scored["behavior"] == "error").sum())
     if errors:
         print(f"  ! {errors} generation errors excluded from scoring")
@@ -291,7 +309,7 @@ def rejudge(
             if n % 100 == 0 or n == len(records):
                 print(f"    {n}/{len(records)}  {(time.time() - started) / n:.2f}s/item", flush=True)
 
-    scored = pd.DataFrame(rows)
+    scored = _scored_frame(rows)
     errors = int((scored["behavior"] == "error").sum())
     scored = scored[scored["behavior"] != "error"]
     scored.to_csv(out_dir / "scored.csv", index=False)
