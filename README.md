@@ -87,7 +87,7 @@ to this sample, and a number that could not be trusted without a fresh one.
 ## How to reproduce it
 
 ```bash
-git clone <this-repo> && cd policy-to-eval-harness
+git clone https://github.com/bibiong/policy-to-eval-harness.git && cd policy-to-eval-harness
 make install
 make demo      # 400 prompts × 6 models, ~15s, no API keys
 make report    # metrics, charts, findings.md
