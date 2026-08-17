@@ -48,9 +48,14 @@ jobs:
       - name: Tests (incl. regression locks on the shipped numbers)
         run: pytest -q
 
+      # Text artifacts only. Matplotlib PNGs are not byte-reproducible across
+      # platforms — font/freetype rendering and embedded metadata differ between
+      # macOS and the Linux runners — so diffing them fails on every push while
+      # telling you nothing. The charts are still regenerated above, and
+      # tests/test_pipeline.py asserts they are produced and non-trivial.
       - name: Fail if the committed report drifted from a fresh run
         run: |
-          git diff --exit-code -- reports/findings_demo.md reports/charts_demo results/demo_sim/scored.csv \
+          git diff --exit-code -- reports/findings_demo.md results/demo_sim/scored.csv \
             || (echo "::error::Committed artifacts differ from a fresh run. Run 'make demo report' and commit." && exit 1)
 
       - uses: actions/upload-artifact@v4

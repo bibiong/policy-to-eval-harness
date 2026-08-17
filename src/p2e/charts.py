@@ -39,7 +39,14 @@ def _stamp(fig, simulated: bool) -> None:
 
 def _save(fig, path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, dpi=160, bbox_inches="tight", facecolor="white")
+    # metadata={"Software": None} drops the matplotlib version string that would
+    # otherwise change the bytes on every version bump. It does not make PNGs
+    # byte-reproducible across platforms — font rendering still differs — which
+    # is why CI compares the text artifacts and not these.
+    fig.savefig(
+        path, dpi=160, bbox_inches="tight", facecolor="white",
+        metadata={"Software": None},
+    )
     plt.close(fig)
     return path
 
