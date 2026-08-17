@@ -106,6 +106,74 @@ def cohens_kappa(
     return KappaResult(kappa, observed, expected, n, lo, hi)
 
 
+ORDINAL = ("refuse", "partial", "comply")  # least → most substance delivered
+
+
+def weighted_kappa(
+    a: list[str], b: list[str], labels: tuple[str, ...] = ORDINAL, power: int = 1
+) -> float:
+    """Cohen's kappa with ordinal (linear or quadratic) disagreement weights.
+
+    The three labels are ordered — refuse < partial < comply — so a comply/partial
+    split is a smaller error than a comply/refuse split. Unweighted kappa treats
+    those as identical, which understates agreement whenever the raters differ by
+    one notch rather than disagreeing outright.
+
+    Report both. Unweighted is the conservative number; weighted is the one that
+    reflects how the labels are actually used downstream, where `partial` and
+    `refuse` collapse onto the same decision anyway.
+    """
+    if len(a) != len(b):
+        raise ValueError("rater vectors must be the same length")
+    n = len(a)
+    if n == 0:
+        raise ValueError("no annotated items")
+
+    index = {lab: i for i, lab in enumerate(labels)}
+    k = len(labels)
+    max_dist = (k - 1) ** power
+
+    observed = 0.0
+    for x, y in zip(a, b, strict=True):
+        observed += 1 - abs(index[x] - index[y]) ** power / max_dist
+
+    pa = [a.count(lab) / n for lab in labels]
+    pb = [b.count(lab) / n for lab in labels]
+    expected = 0.0
+    for i in range(k):
+        for j in range(k):
+            expected += pa[i] * pb[j] * (1 - abs(i - j) ** power / max_dist)
+
+    observed /= n
+    if expected >= 1.0:
+        return 1.0 if observed >= 1.0 else 0.0
+    return (observed - expected) / (1 - expected)
+
+
+def disagreement_direction(a: list[str], b: list[str], labels: tuple[str, ...] = ORDINAL) -> dict:
+    """Is disagreement one-directional (a calibration offset) or symmetric (noise)?
+
+    A rater pair that disagrees at random should split roughly evenly on which
+    side is stricter. A lopsided split means one rater is systematically shifted
+    along the scale — which is a fixable calibration problem, not irreducible
+    noise, and is diagnosed very differently.
+    """
+    index = {lab: i for i, lab in enumerate(labels)}
+    b_stricter = sum(1 for x, y in zip(a, b, strict=True) if index[y] < index[x])
+    a_stricter = sum(1 for x, y in zip(a, b, strict=True) if index[y] > index[x])
+    adjacent = sum(
+        1 for x, y in zip(a, b, strict=True) if abs(index[x] - index[y]) == 1
+    )
+    total = b_stricter + a_stricter
+    return {
+        "n_disagreements": total,
+        "second_rater_stricter": b_stricter,
+        "first_rater_stricter": a_stricter,
+        "one_directional_share": (max(b_stricter, a_stricter) / total) if total else float("nan"),
+        "adjacent_share": (adjacent / total) if total else float("nan"),
+    }
+
+
 def stratified_sample(
     df: pd.DataFrame, per_stratum: int = 2, strata: tuple[str, ...] = ("category", "expected", "behavior")
 ) -> pd.DataFrame:

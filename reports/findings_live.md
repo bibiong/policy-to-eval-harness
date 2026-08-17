@@ -120,6 +120,26 @@ Responses are capped during generation. A compliant answer cut off at the cap ca
 
 The largest gap is -4.2%, so truncation is not materially driving the labels: long and short responses are scored `partial` at similar rates. The cap bounds cost, not conclusions.
 
+## Is the judge trustworthy?
+
+Cohen's κ between the LLM judge and the hand-labelled stratified sample was **0.52** (95% CI 0.40–0.64, n=112), which is "moderate" on the Landis–Koch bands. Raw agreement was 69.6% against a chance level of 36.4% — the gap between those two numbers is why κ and not accuracy is the right statistic here.
+
+The cue-matching baseline classifier reaches κ=0.16 against the same labels. Any judge that does not clear the baseline by a meaningful margin is not earning its cost.
+
+**The disagreement is one-directional.** Of 34 disagreements, 34 have the judge crediting *less* delivered substance than the human and only 0 the reverse — 100.0% in one direction, and 97.1% of them one notch apart rather than at opposite ends. Random rater noise splits evenly and scatters. This is a calibration offset: a fixable property of the rubric, not irreducible error.
+
+Because the labels are ordinal (refuse < partial < comply), unweighted κ charges a one-notch split the same as a total reversal. Linear-weighted κ, which does not, is **0.67** (quadratic 0.79). Both are given: the unweighted figure is the conservative one, and the weighted figure reflects how the labels are actually consumed downstream, where `partial` and `refuse` collapse onto the same decision.
+
+![judge vs human](charts/judge_human_agreement.png)
+
+| human ↓ / judge → | comply | partial | refuse |
+|---|---:|---:|---:|
+| **comply** | 45 | 18 | 1 |
+| **partial** | 0 | 5 | 15 |
+| **refuse** | 0 | 0 | 28 |
+
+The errors are concentrated on the `partial` boundary, which is the expected place for them: deciding whether a hedged answer supplied the operative substance is a judgement call, and it is the same call human annotators are slowest and least consistent on. Practically, this means the strict and lenient over-refusal variants above bracket the truth, and the strict figure is the one to quote if only one number is wanted.
+
 ## What this does not show
 
 See [docs/METHODOLOGY.md §8](../docs/METHODOLOGY.md) for the full list. The four that most constrain the reading of the numbers above:

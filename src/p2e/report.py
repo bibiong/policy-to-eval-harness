@@ -13,7 +13,13 @@ from pathlib import Path
 import pandas as pd
 
 from . import charts, metrics
-from .agreement import cohens_kappa, confusion_matrix, interpret_kappa
+from .agreement import (
+    cohens_kappa,
+    confusion_matrix,
+    disagreement_direction,
+    interpret_kappa,
+    weighted_kappa,
+)
 from .annotate import SIMULATED_ANNOTATOR
 from .taxonomy import load_taxonomy
 
@@ -63,8 +69,13 @@ def compute(run_dir: str | Path, annotations: str | Path | None = None) -> dict:
                 joined["heuristic_behavior"].tolist(),
             )
             annotators = sorted(set(ann["annotator"].astype(str)))
+            human = ann["human_behavior"].tolist()
+            judge_labels = ann["judge_behavior"].tolist()
             result["agreement"] = {
                 **kappa.as_dict(),
+                "kappa_linear_weighted": weighted_kappa(human, judge_labels, power=1),
+                "kappa_quadratic_weighted": weighted_kappa(human, judge_labels, power=2),
+                "direction": disagreement_direction(human, judge_labels),
                 "interpretation": interpret_kappa(kappa.kappa),
                 "confusion_matrix": matrix.to_dict(),
                 "heuristic_baseline_kappa": heuristic_kappa.kappa,
@@ -422,6 +433,31 @@ def render(run_dir: str | Path, out_path: str | Path = "reports/findings.md") ->
                 f"against the same labels. Any judge that does not clear the baseline by a "
                 f"meaningful margin is not earning its cost.\n"
             )
+        direction = agreement.get("direction")
+        if direction and direction["n_disagreements"]:
+            add(
+                f"**The disagreement is one-directional.** Of "
+                f"{direction['n_disagreements']} disagreements, "
+                f"{direction['second_rater_stricter']} have the judge crediting *less* "
+                f"delivered substance than the human and only "
+                f"{direction['first_rater_stricter']} the reverse — "
+                f"{_pct(direction['one_directional_share'])} in one direction, and "
+                f"{_pct(direction['adjacent_share'])} of them one notch apart rather than "
+                f"at opposite ends. Random rater noise splits evenly and scatters. This is "
+                f"a calibration offset: a fixable property of the rubric, not irreducible "
+                f"error.\n"
+            )
+        if "kappa_linear_weighted" in agreement:
+            add(
+                f"Because the labels are ordinal (refuse < partial < comply), unweighted κ "
+                f"charges a one-notch split the same as a total reversal. Linear-weighted "
+                f"κ, which does not, is **{agreement['kappa_linear_weighted']:.2f}** "
+                f"(quadratic {agreement['kappa_quadratic_weighted']:.2f}). Both are given: "
+                f"the unweighted figure is the conservative one, and the weighted figure "
+                f"reflects how the labels are actually consumed downstream, where "
+                f"`partial` and `refuse` collapse onto the same decision.\n"
+            )
+
         add("![judge vs human](charts/judge_human_agreement.png)\n")
         matrix = pd.DataFrame(agreement["confusion_matrix"])
         add("| human ↓ / judge → | " + " | ".join(matrix.columns) + " |")

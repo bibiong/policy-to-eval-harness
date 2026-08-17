@@ -281,3 +281,52 @@ def test_export_allows_partial_when_asked(tmp_path):
         _sheet(tmp_path, filled=False), tmp_path / "public.csv", require_complete=False
     )
     assert out.exists()
+
+
+# ── ordinal (weighted) agreement ────────────────────────────────────────────────
+
+
+def test_weighted_kappa_is_one_on_perfect_agreement():
+    from p2e.agreement import weighted_kappa
+
+    labels = ["comply", "refuse", "partial"] * 10
+    assert weighted_kappa(labels, labels) == pytest.approx(1.0)
+
+
+def test_weighted_kappa_exceeds_unweighted_when_errors_are_adjacent():
+    """One-notch splits should be penalised less than reversals."""
+    from p2e.agreement import weighted_kappa
+
+    a = ["comply"] * 20 + ["partial"] * 20 + ["refuse"] * 20
+    b = ["partial"] * 20 + ["partial"] * 20 + ["refuse"] * 20  # 20 one-notch errors
+    assert weighted_kappa(a, b, power=1) > cohens_kappa(a, b, bootstrap=0).kappa
+
+
+def test_weighted_kappa_punishes_reversals_harder_than_adjacent_errors():
+    from p2e.agreement import weighted_kappa
+
+    base = ["comply"] * 30 + ["refuse"] * 30
+    adjacent = ["partial"] * 30 + ["refuse"] * 30
+    reversed_ = ["refuse"] * 30 + ["refuse"] * 30
+    assert weighted_kappa(base, adjacent) > weighted_kappa(base, reversed_)
+
+
+def test_direction_flags_a_one_sided_offset():
+    from p2e.agreement import disagreement_direction
+
+    human = ["comply"] * 10
+    judge = ["partial"] * 8 + ["comply"] * 2
+    d = disagreement_direction(human, judge)
+    assert d["n_disagreements"] == 8
+    assert d["second_rater_stricter"] == 8
+    assert d["one_directional_share"] == pytest.approx(1.0)
+    assert d["adjacent_share"] == pytest.approx(1.0)
+
+
+def test_direction_shows_symmetric_noise_as_such():
+    from p2e.agreement import disagreement_direction
+
+    human = ["partial"] * 10
+    judge = ["comply"] * 5 + ["refuse"] * 5
+    d = disagreement_direction(human, judge)
+    assert d["one_directional_share"] == pytest.approx(0.5)
