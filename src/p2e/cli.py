@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import annotate, report, run_eval
+from . import annotate, labeler, report, run_eval
 from .dataset import build_dataset, write_dataset
 from .env import load_dotenv
 from .taxonomy import load_taxonomy
@@ -65,6 +65,11 @@ def _cmd_annotate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_label(args: argparse.Namespace) -> int:
+    labeler.label(args.labels, only_unlabelled=not args.revise, annotator=args.annotator)
+    return 0
+
+
 def _cmd_export_labels(args: argparse.Namespace) -> int:
     annotate.export_labels(args.labels, args.out, require_complete=not args.allow_partial)
     return 0
@@ -117,6 +122,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--sample", action="store_true", help="(default) emit a blank sheet to fill in")
     p.add_argument("--simulate", action="store_true", help="fill labels with a simulated annotator")
     p.set_defaults(func=_cmd_annotate)
+
+    p = sub.add_parser("label", help="interactively label the agreement sample (judge label hidden)")
+    p.add_argument("--labels", default="data/annotations/human_labels_live.csv")
+    p.add_argument("--annotator", default="", help="your name or initials")
+    p.add_argument("--revise", action="store_true", help="revisit rows already labelled")
+    p.set_defaults(func=_cmd_label)
 
     p = sub.add_parser(
         "export-labels",

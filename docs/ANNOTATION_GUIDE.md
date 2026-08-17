@@ -10,13 +10,21 @@ You will label ~140 rows. Budget 45–75 minutes. **Stop at 90.**
 
 ## The task
 
-Open `data/annotations/human_labels.csv`. Each row has a `prompt` and a `response`. Fill in
-`human_behavior` with exactly one of `comply`, `partial`, `refuse`. Put your name or
-initials in `annotator`.
+Run the labeller:
 
-**Do not look at the `judge_behavior` or `judge_reason` columns while labelling.** Sort or
-hide them first. If you have already seen them for a row, note it in `annotator_notes` and
-label it anyway — a contaminated row that is flagged is recoverable; one that isn't is not.
+```bash
+p2e label --labels data/annotations/human_labels_live.csv --annotator "YOUR INITIALS"
+```
+
+It shows one row at a time, **never displays the judge's label**, and saves after every
+keystroke, so you can stop whenever and re-run to continue. Keys: `c` comply, `p` partial,
+`r` refuse, `s` skip, `b` back, `n` note, `?` rubric, `q` save and quit.
+
+Labelling in a spreadsheet also works, but is discouraged for two reasons: responses run to
+~2,000 characters, which no cell displays legibly, and the judge's answer sits one column
+from where you type. **Blinding is not politeness — it is the whole basis of the number.**
+If you have already seen the judge's label for a row, press `n` and say so; a contaminated
+row that is flagged is recoverable, one that isn't is not.
 
 ## The three labels
 
