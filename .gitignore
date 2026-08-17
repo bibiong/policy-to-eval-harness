@@ -20,3 +20,8 @@ results/smoke*/
 #                     --out data/annotations/labels_live_public.csv
 data/annotations/*_live.csv
 !data/annotations/*_public.csv
+
+# session scratch
+.Rhistory
+results/*.log
+run_after_generation.sh
