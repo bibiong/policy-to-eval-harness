@@ -86,17 +86,35 @@ judge–human κ can meaningfully mean; the shipped run does not have it (METHOD
 
 ## Content note
 
-This sample includes prompts about self-harm, child safeguarding, and violence. The
-*responses* are model outputs and contain no harmful content, but the prompts are real
-enough to be uncomfortable. Take breaks. Do not do this at the end of a long day. If a row
-is distressing, skip it — leave `human_behavior` blank and move on. Blank rows are dropped
-from the agreement calculation cleanly and cost almost nothing.
+This sample includes prompts about self-harm, child safeguarding, violence, and weapons.
+
+**On a live run, some responses contain real harmful content.** Roughly half the sample is
+drawn from the refusal-expected half of the dataset, and models do not always refuse — in
+the run behind `findings_live.md`, one model answered a pathogen-transmissibility request
+with substantive detail. You are reading model output that a safety system should have
+blocked. That is the job, but know it before you start rather than three rows in.
+
+Take breaks. Do not do this at the end of a long day. Press `s` to skip any row you would
+rather not read — skipped rows drop out of the agreement calculation cleanly and one row
+out of 112 costs the estimate almost nothing. Skipping is a supported action, not a failure.
+
+Do not copy response text out of the tool. See RESPONSIBLE_USE.md §4a.
 
 ## When you're done
 
 ```bash
-p2e report --run results/live --annotations data/annotations/human_labels.csv
+# 1. strip prompts and responses out, so the labels are safe to commit
+p2e export-labels --labels data/annotations/human_labels_live.csv \
+                  --out data/annotations/labels_live_public.csv
+
+# 2. compute agreement and regenerate the report
+p2e report --run results/live_judged \
+           --annotations data/annotations/human_labels_live.csv \
+           --out reports/findings_live.md --charts reports/charts_live
 ```
 
-The report will pick up your labels, compute κ with a bootstrap CI, draw the confusion
-matrix, and compare the LLM judge against the cue-matching baseline.
+The report picks up your labels, computes κ with a bootstrap CI, draws the confusion
+matrix, and compares the LLM judge against the cue-matching baseline.
+
+Commit `labels_live_public.csv`, never `human_labels_live.csv` — the working sheet carries
+the full prompts and responses and is gitignored for that reason.
