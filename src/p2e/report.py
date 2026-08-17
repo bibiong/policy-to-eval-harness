@@ -8,6 +8,7 @@ data. Running `make report` after a real run rewrites it in place.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -117,8 +118,16 @@ def make_charts(run_dir: str | Path, out_dir: str | Path = "reports/charts") -> 
     return paths
 
 
-def render(run_dir: str | Path, out_path: str | Path = "reports/findings.md") -> Path:
+def render(
+    run_dir: str | Path,
+    out_path: str | Path = "reports/findings.md",
+    charts_dir: str | Path = "reports/charts",
+) -> Path:
     run_dir = Path(run_dir)
+    # Chart links must be relative to the report, not to a fixed directory name:
+    # a run written with --charts reports/charts_live was silently emitting links
+    # into reports/charts, producing a report full of broken images.
+    rel_charts = os.path.relpath(Path(charts_dir).resolve(), Path(out_path).resolve().parent)
     data = json.loads((run_dir / "metrics.json").read_text(encoding="utf-8"))
     taxonomy = load_taxonomy()
     manifest = data["manifest"]
@@ -191,15 +200,29 @@ def render(run_dir: str | Path, out_path: str | Path = "reports/findings.md") ->
         f"n={overall['over_refusal']['n']}). Counting only outright refusals and excluding "
         f"hedged non-answers, the rate is {_pct(overall['over_refusal_strict']['rate'])}.\n"
     )
+    leak_rate = overall["under_refusal"]["rate"]
+    over_rate = overall["over_refusal"]["rate"]
     add(
         f"Leakage in the other direction — substantive answers to requests the taxonomy marks "
-        f"as prohibited — was {_pct(overall['under_refusal']['rate'])} "
-        f"(n={overall['under_refusal']['n']}). Pooled precision on the refuse class was "
-        f"{overall['precision_recall']['precision']:.2f} and recall "
-        f"{overall['precision_recall']['recall']:.2f}: the models catch most of what the policy "
-        f"asks them to catch, and pay for it with a large number of false positives on "
-        f"legitimate traffic.\n"
+        f"as prohibited — was {_pct(leak_rate)} (n={overall['under_refusal']['n']}). Pooled "
+        f"precision on the refuse class was {overall['precision_recall']['precision']:.2f} and "
+        f"recall {overall['precision_recall']['recall']:.2f}.\n"
     )
+    if leak_rate > over_rate:
+        add(
+            f"**Leakage is the larger error here, by a factor of "
+            f"{leak_rate / over_rate:.1f}.** That inverts the usual framing of this kind of "
+            f"evaluation. These models are not paying for safety with over-refusal; they are "
+            f"comparatively permissive in both directions, and the policy-prohibited half of "
+            f"the dataset is where they miss. Any summary that reported only the over-refusal "
+            f"figure would describe them as well-calibrated, which they are not.\n"
+        )
+    else:
+        add(
+            f"Over-refusal is the larger error, by a factor of {over_rate / leak_rate:.1f}: the "
+            f"models catch most of what the policy asks them to catch and pay for it with false "
+            f"positives on legitimate traffic.\n"
+        )
     add(
         f"The spread across models is wide — {_pct(best_model['over_refusal'])} for "
         f"`{best_model['model']}` against {_pct(worst_model['over_refusal'])} for "
@@ -207,7 +230,7 @@ def render(run_dir: str | Path, out_path: str | Path = "reports/findings.md") ->
         f"That spread is the finding. It means the policy text is not what determines "
         f"the behaviour; the tuning is.\n"
     )
-    add("![over-refusal by model](charts/over_refusal_by_model.png)\n")
+    add(f"![over-refusal by model]({rel_charts}/over_refusal_by_model.png)\n")
 
     add("### Per-model\n")
     add("| model | over-refusal | 95% CI | strict | leakage | precision | recall | F1 |")
@@ -228,7 +251,7 @@ def render(run_dir: str | Path, out_path: str | Path = "reports/findings.md") ->
         f"category where the cost of a non-answer is highest, because the legitimate traffic "
         f"is clinicians, researchers, journalists and people supporting someone in crisis.\n"
     )
-    add("![over-refusal by category](charts/over_refusal_by_category.png)\n")
+    add(f"![over-refusal by category]({rel_charts}/over_refusal_by_category.png)\n")
     add("| category | over-refusal | 95% CI | precision | recall | disagreement | excess |")
     add("|---|---:|---:|---:|---:|---:|---:|")
     for row in per_cat.itertuples():
@@ -256,7 +279,7 @@ def render(run_dir: str | Path, out_path: str | Path = "reports/findings.md") ->
         "means refusals are uncorrelated: nothing shared is driving the call, which is "
         "the signature of policy language that does not settle the case.\n"
     )
-    add("![ambiguity vs over-refusal](charts/ambiguity_vs_over_refusal.png)\n")
+    add(f"![ambiguity vs over-refusal]({rel_charts}/ambiguity_vs_over_refusal.png)\n")
     add("The three least-determined categories in this run, ranked by excess disagreement:\n")
     for row in ambiguous.itertuples():
         cat = taxonomy.category(row.category)
@@ -311,7 +334,7 @@ def render(run_dir: str | Path, out_path: str | Path = "reports/findings.md") ->
         "framings across different and systematically harder item sets, and an "
         "item-selection effect would read as a framing effect.\n"
     )
-    add("![framing sensitivity](charts/framing_sensitivity.png)\n")
+    add(f"![framing sensitivity]({rel_charts}/framing_sensitivity.png)\n")
     add("| model | bare | student | professional | urgent personal | context gain |")
     add("|---|---:|---:|---:|---:|---:|")
     for model, row in framing_pivot.iterrows():
@@ -458,7 +481,7 @@ def render(run_dir: str | Path, out_path: str | Path = "reports/findings.md") ->
                 f"`partial` and `refuse` collapse onto the same decision.\n"
             )
 
-        add("![judge vs human](charts/judge_human_agreement.png)\n")
+        add(f"![judge vs human]({rel_charts}/judge_human_agreement.png)\n")
         matrix = pd.DataFrame(agreement["confusion_matrix"])
         add("| human ↓ / judge → | " + " | ".join(matrix.columns) + " |")
         add("|---|" + "---:|" * len(matrix.columns))

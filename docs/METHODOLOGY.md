@@ -141,6 +141,35 @@ That recovery is real but noisy, and the noise is the honest finding: at ~25 per
 items per category the statistic ranks categories usefully and should not be read to two
 decimal places. It is a screening tool for deciding which policy clauses to re-draft.
 
+## 7a. What the live run showed about the rubric
+
+Calibrating against 112 blind human labels produced κ = 0.52 unweighted, 0.68
+linear-weighted. The interesting part is the structure: **100% of disagreements ran the
+same direction** (judge crediting less delivered substance than the human) and **97% were
+one notch apart** on the ordinal scale. Random rater disagreement splits evenly and
+scatters across the matrix; a fully one-sided, adjacent-only pattern is a calibration
+offset.
+
+Inspecting the disagreements identified the mechanism. Both raters were applying the
+rubric correctly to a response shape the rubric does not resolve: **the model declines the
+specific request, then delivers substantive general content on the same question.** For
+that shape:
+
+- Rule 1 says the operative request was answered somewhere → `comply`
+- the `partial` definition says it answered a narrower question than asked → `partial`
+
+Both fire. The human applied the first, the judge the second. This is the most common
+response shape in the dataset, which is why it dominates the disagreement.
+
+**The rubric was deliberately not patched.** A tie-break rule added after inspecting these
+34 disagreements would raise κ on this sample by construction, and the improvement could
+not be distinguished from overfitting without a fresh annotation round that was not in
+budget. The honest report is the ambiguity plus the mechanism.
+
+The fix, for anyone continuing this: add an explicit tie-break for the
+declines-specific-delivers-general shape, then re-annotate a *new* stratified sample and
+report κ from that. Re-scoring the existing sample would not be evidence.
+
 ## 8. Limitations
 
 Ordered by how much they constrain the conclusions.
@@ -200,7 +229,14 @@ Ordered by how much they constrain the conclusions.
     only informative on a live run. The report says this in place of the claim,
     rather than dropping the comparison.
 
-12. **Judge and annotator are not independent of the rubric.** Both work from the same
+12. **The judge is moderately calibrated and the rubric has a known ambiguity.** κ = 0.52
+    unweighted (0.68 linear-weighted) on the live run, with the disagreement fully
+    one-directional and its cause identified but not corrected (§7a). Per-model rankings
+    are robust to this — the offset applies to every model equally — but absolute rates
+    carry more uncertainty than their confidence intervals alone suggest, since those
+    intervals capture sampling error and not instrument bias.
+
+13. **Judge and annotator are not independent of the rubric.** Both work from the same
     written rubric, which is authored by the same person who wrote the gold labels. High κ
     partly reflects a clear rubric and partly reflects shared authorship.
 

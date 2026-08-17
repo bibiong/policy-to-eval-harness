@@ -78,7 +78,7 @@ def _cmd_export_labels(args: argparse.Namespace) -> int:
 def _cmd_report(args: argparse.Namespace) -> int:
     data = report.compute(args.run, annotations=args.annotations)
     report.make_charts(args.run, out_dir=args.charts)
-    report.render(args.run, out_path=args.out)
+    report.render(args.run, out_path=args.out, charts_dir=args.charts)
     over = data["overall"]["over_refusal"]
     print(f"  over-refusal: {over['rate'] * 100:.1f}% ({over['k']}/{over['n']})")
     if "agreement" in data:

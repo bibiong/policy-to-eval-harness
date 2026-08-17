@@ -9,7 +9,7 @@ demo:
 	p2e annotate --run results/demo_sim --simulate
 
 report:
-	p2e report --run results/demo_sim
+	p2e report --run results/demo_sim --out reports/findings_demo.md --charts reports/charts_demo
 
 test:
 	pytest
@@ -20,4 +20,4 @@ lint:
 all: demo report test
 
 clean:
-	rm -rf results/demo_sim reports/charts/*.png reports/findings.md
+	rm -rf results/demo_sim reports/charts_demo/*.png reports/findings_demo.md

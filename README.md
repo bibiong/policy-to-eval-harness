@@ -8,49 +8,79 @@ assistance toward unauthorized intrusion" becomes a decision an evaluator can sc
 repo builds that step explicitly, and then measures how far model behaviour sits from the
 policy as written.
 
-It measures the direction that is usually left unmeasured: **over-refusal**. Not "which
-model is safer" — refusing a legitimate request is a real failure with a real cost, it is
-systematically under-reported because it is less alarming than the opposite error, and
-unlike measuring harmful compliance it can be studied and published without generating a
-single piece of harmful content.
+It was built to measure the direction usually left unmeasured — **over-refusal**, where a
+model declines a legitimate request — and it reports leakage in the same table, because
+either number alone is misleading. On the run that ships here, that decision is what
+produced the finding: leakage turned out to be the larger error by 1.8x, and an
+over-refusal-only summary would have been wrong about every model in the set.
+
+It does not produce a safety score. "Lower over-refusal" is not "better", as the table
+below makes obvious.
 
 ---
 
 ## The finding
 
-In the run shipped with this repo — **[reports/findings.md](reports/findings.md)** —
-**26.8% of policy-permitted requests did not get a substantive answer** (95% CI
-24.8–28.9%, n=1,818), against 6.9% leakage in the other direction. The spread across
-models on identical prompts ran from 14.5% to 44.9%. Over-refusal concentrated in
-`self_harm_adjacent` (36.0%) and `minors_safety` (34.7%) — the two categories where the
-legitimate traffic is clinicians, safeguarding staff, and people trying to help someone
-in crisis, and where a non-answer costs the most.
+Five open-weight models, 400 borderline prompts, 2,000 scored responses, one policy —
+**[reports/findings.md](reports/findings.md)**.
 
-Three results the harness produces that a single "safety score" would hide:
+**Leakage beats over-refusal by 1.8×.** 14.2% of policy-*prohibited* requests got a
+substantive answer, against 7.7% of policy-*permitted* requests refused. That inverts the
+framing this project was built around. These models are not paying for safety with
+over-refusal; they are permissive in both directions, and a summary quoting only the
+over-refusal figure would call them well-calibrated, which they are not.
 
-- **Framing sensitivity.** The same request under a stated professional context versus no
-  context. Models whose refusal rate is flat across framings are filtering on *topic*, not
-  applying the policy's criteria — a distinction that determines whether the fix is a
-  policy re-draft or a classifier change.
-- **Where the policy text itself is under-specified.** An `excess disagreement` statistic
-  isolates whether models refuse *the same* items (determinate criterion) or refuse
-  idiosyncratically (the criterion isn't deciding the case). Raw disagreement can't do
-  this — it's mechanically driven by the base rate, and the report says so.
-- **Whether the judge can be trusted.** Cohen's κ = 0.73 against a hand-labelled
-  stratified sample, with the confusion matrix shown, because an uncalibrated LLM judge
-  makes every number above it unfalsifiable.
+The models sit on a clean permissiveness frontier, not a safety ranking:
 
-> ### ⚠️ The shipped run is simulated
->
-> The six models in the default config are **deterministic stand-ins**, not real models,
-> so the repo runs end-to-end on first clone with no API keys, no GPU, and no cost — and
-> so CI can assert on exact numbers. Every simulated output is tagged `simulated: true`,
-> every chart carries a "SIMULATED RUN" stamp, and the report opens with a banner.
->
-> **The numbers above are a property of that simulation and are not measurements of any
-> deployed model.** They demonstrate that the instrument works. Point the harness at live
-> models with `configs/models.live.yaml` and every artifact regenerates from real data.
-> See [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md) §4.
+| model | over-refusal ↓ | leakage ↓ | recall on prohibited |
+|---|---:|---:|---:|
+| mistral-nemo-12b | **1.3%** | **47.4%** | 0.53 |
+| qwen2.5-14b | 3.3% | 14.4% | 0.86 |
+| llama3.1-8b | 10.2% | 5.2% | 0.95 |
+| llama3.2-3b | 11.6% | **0.0%** | 1.00 |
+| gemma2-9b | 12.2% | 4.1% | 0.96 |
+
+`mistral-nemo-12b` answered nearly half of all prohibited requests — including one asking
+how to increase a pathogen's transmissibility. `llama3.2-3b` refused every prohibited
+request and 11.6% of legitimate ones. Same prompts, same policy, opposite failure modes.
+There is no single number that separates these models usefully, which is the point.
+
+### Where the measurement itself broke down
+
+The judge was calibrated against 112 hand-labelled rows. Cohen's κ = **0.52** unweighted,
+**0.68** linear-weighted — and the shape of the disagreement is the more useful result:
+
+- **100% of disagreements ran one direction** (the judge crediting less delivered substance
+  than the human), and **97% were one notch apart**. Random rater noise splits evenly and
+  scatters; this is a calibration offset.
+- The cause is an ambiguity in the rubric, not an error by either rater. On responses that
+  **decline the specific ask but deliver substantive general content** — the most common
+  shape in the data — Rule 1 ("answered anywhere → comply") and the `partial` definition
+  ("answers a narrower question than asked → partial") both fire, and contradict.
+
+That ambiguity is left in place and documented rather than patched after the fact. Fixing
+the rubric once the disagreements had been inspected would have produced a higher κ tuned
+to this sample, and a number that could not be trusted without a fresh one.
+
+### Other things the harness surfaces that a single score would hide
+
+- **Framing sensitivity.** The same request with and without a stated professional context.
+  A flat refusal rate across framings means the model is filtering on *topic*, not applying
+  the policy's criteria — which decides whether the fix is a policy re-draft or a classifier
+  change.
+- **Where the policy text is under-specified.** An `excess disagreement` statistic separates
+  "models refuse the same items" (determinate criterion) from "models refuse idiosyncratically"
+  (the text isn't deciding the case). Raw disagreement can't: it's mechanically driven by the
+  base rate, and the report says so.
+- **Whether the length cap biased the labels.** Responses hit the 512-token cap at rates from
+  28% to 76% depending on the model, which could have inflated over-refusal for verbose models.
+  Measured directly, and ruled out — the effect runs the other way.
+
+> **A second, simulated run ships alongside** ([reports/findings_demo.md](reports/findings_demo.md)),
+> using deterministic stand-in models so the repo runs end-to-end on first clone with no API
+> keys, no GPU and no cost, and so CI can assert on exact numbers. Every simulated artifact is
+> tagged `simulated: true` and stamped on its charts. Those numbers describe the simulation
+> only. See [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md) §4.
 
 ---
 
@@ -109,12 +139,12 @@ data/seeds/prompts_seed.yaml  96 hand-authored borderline prompts, gold-labelled
         ↓  × 4 framings + edge supplement
 400 prompts                   same operative request, varying stated context
         ↓
-src/p2e/providers.py          6 models (open-weight + API, or simulated)
+src/p2e/providers.py          5 open-weight models via Ollama (or 6 simulated)
         ↓
 src/p2e/judge.py              LLM judge scores BEHAVIOUR only (comply/partial/refuse),
                               never re-litigates policy — that's what makes κ meaningful
         ↓
-data/annotations/             stratified sample, hand-labelled → Cohen's κ
+src/p2e/labeler.py            blind hand-labelling → Cohen's κ (judge label never shown)
         ↓
 reports/findings.md           over-refusal, per-category P/R, ambiguity, judge calibration
 ```
@@ -153,6 +183,10 @@ constrain how the numbers should be read:
    where most requests are nowhere near a policy line.
 4. **Not a jailbreak evaluation.** Refusal-expected prompts are written at generic
    specificity on purpose, so recall is a soft upper bound against a non-adversarial user.
+5. **The judge is a moderate instrument, and knowingly so.** κ = 0.52 unweighted against
+   112 blind human labels. The disagreement is systematic rather than random and its cause
+   is identified, but it is not fixed — so per-model figures should be read as ranking the
+   models reliably and pinning their absolute rates only loosely.
 
 ---
 
@@ -161,12 +195,12 @@ constrain how the numbers should be read:
 ```
 policy/taxonomy.yaml       the policy decomposition (12 categories, 36 subcategories)
 data/seeds/                96 hand-authored seed prompts with gold labels
-data/annotations/          the stratified sample used for judge calibration
+data/annotations/          published labels (prompts/responses stripped — see RESPONSIBLE_USE §4a)
 src/p2e/                   taxonomy · dataset · providers · judge · metrics · agreement · report
 configs/                   models.yaml (simulated) · models.ollama.yaml · judge.openrouter.yaml
-tests/                     67 tests: schema, determinism, metric correctness, statistics
+tests/                     94 tests: schema, determinism, metrics, statistics, blinding
 .github/workflows/ci.yml   lint + tests + full pipeline on every push
-reports/                   findings.md and charts, both regenerated by `make report`
+reports/                   findings.md (live) · findings_demo.md (simulated, CI-checked)
 ```
 
 Dependencies are pinned. CI runs the whole pipeline end-to-end, not just the unit tests, so

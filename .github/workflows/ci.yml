@@ -43,14 +43,14 @@ jobs:
         run: |
           p2e run --config configs/models.yaml --out results/demo_sim
           p2e annotate --run results/demo_sim --simulate
-          p2e report --run results/demo_sim
+          p2e report --run results/demo_sim --out reports/findings_demo.md --charts reports/charts_demo
 
       - name: Tests (incl. regression locks on the shipped numbers)
         run: pytest -q
 
       - name: Fail if the committed report drifted from a fresh run
         run: |
-          git diff --exit-code -- reports/ results/demo_sim/scored.csv \
+          git diff --exit-code -- reports/findings_demo.md reports/charts_demo results/demo_sim/scored.csv \
             || (echo "::error::Committed artifacts differ from a fresh run. Run 'make demo report' and commit." && exit 1)
 
       - uses: actions/upload-artifact@v4
