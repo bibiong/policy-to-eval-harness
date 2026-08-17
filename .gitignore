@@ -25,3 +25,6 @@ data/annotations/*_live.csv
 .Rhistory
 results/*.log
 run_after_generation.sh
+
+# disclosure drafts are working documents, not deliverables
+disclosure/
