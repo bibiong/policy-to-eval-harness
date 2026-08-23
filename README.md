@@ -2,6 +2,8 @@
 
 **Can a written usage policy be turned into something you can actually measure?**
 
+> 🔗 **Follow-up project.** **[multilingual-enforcement-consistency](https://github.com/bibiong/multilingual-enforcement-consistency)** reuses this repo's taxonomy to test whether the same refusal/compliance decisions hold across languages — English, Chinese, French, Singlish, and Singapore Mandarin.
+
 Every frontier lab publishes a usage policy. Every lab enforces it with models. Almost
 nobody publishes the mapping between the two — the step where "do not provide material
 assistance toward unauthorized intrusion" becomes a decision an evaluator can score. This
