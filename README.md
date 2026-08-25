@@ -47,6 +47,12 @@ how to increase a pathogen's transmissibility. `llama3.2-3b` refused every prohi
 request and 11.6% of legitimate ones. Same prompts, same policy, opposite failure modes.
 There is no single number that separates these models usefully, which is the point.
 
+*This finding was shared with Mistral on 2026-08-17, ahead of publication, with a 7-day
+window to respond or request more time. No reply was received by the window's close on
+2026-08-24. The model tested was the community `mistral-nemo:12b` Q4_0 build served locally
+through Ollama, not Mistral's own API or the unquantized weights — quantization can affect
+refusal behaviour, and this has not been verified against their serving stack.*
+
 ### Where the measurement itself broke down
 
 The judge was calibrated against 112 hand-labelled rows. Cohen's κ = **0.52** unweighted,
